@@ -25,4 +25,18 @@ class MappingInput(BaseModel):
 class RunInput(BaseModel):
  name:str=Field(min_length=2,max_length=120)
  mapping_id:int
+class LineageEntry(BaseModel):
+ sample_code:str
+ parent_sample_code:str
+ relation:str
+class LineageInput(BaseModel):
+ request_id:str=Field(default='',max_length=160)
+ note:str=Field(default='',max_length=500)
+ entries:list[LineageEntry]
+ @model_validator(mode='after')
+ def cleanup(self):
+  self.request_id=self.request_id.strip()
+  if self.request_id and not 8<=len(self.request_id)<=160:raise ValueError('回执编号须为8-160字符，用于重试去重')
+  if not 1<=len(self.entries)<=200:raise ValueError('每次登记须包含1-200条来路')
+  return self
 class RestoreInput(BaseModel):backup:dict

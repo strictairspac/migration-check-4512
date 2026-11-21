@@ -12,6 +12,7 @@ class Run(Base):
  progress=Column(JSON,nullable=True)
  result=Column(JSON,nullable=True)
  recovery=Column(JSON,nullable=True)
+ lineage=Column(JSON,nullable=True)
  error=Column(String(1000),nullable=True)
  created_at=Column(DateTime,server_default=func.now())
 class TargetRow(Base):

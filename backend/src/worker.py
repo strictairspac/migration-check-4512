@@ -7,6 +7,7 @@ from src.models.mapping import Mapping
 from src.models.run import Run,TargetRow
 from src.services.migration import migrate,make_backup,key_digest,Cancelled
 from src.services.audit import log
+from src.services import runs as runs_service
 q=redis.Redis.from_url(REDIS_URL)
 def progress(run_id,info):
  Path('/tmp/worker-heartbeat').touch()
@@ -27,11 +28,9 @@ while True:
   try:
    result=migrate(snapshot['batch']['rows'],snapshot['mapping']['rules'],snapshot['mapping']['chunk_size'],lambda info:progress(run_id,info))
    result['backup']=make_backup(result,run_id,snapshot['batch']['name'])
-   with Session() as s:
-    r=s.query(Run).filter_by(id=run_id).with_for_update().first()
+   def check(r):
     if r.cancel_requested:raise Cancelled()
-    for i,row in enumerate(result['accepted_rows']):s.add(TargetRow(run_id=run_id,ordinal=i,key_digest=key_digest(row),payload=row))
-    r.result=result;r.status='completed';s.commit()
+   runs_service.finalize(run_id,result,check)
    log('worker','run.completed',str(run_id))
   except Cancelled:
    with Session() as s:r=s.get(Run,run_id);r.status='cancelled';r.error='用户取消，未提交目标行';s.commit()
